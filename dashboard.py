@@ -20,32 +20,53 @@ portfolio_coins = [
     "chrap", "phb", "duel", "gmrx"
 ]
 
-cg_url = "https://api.coingecko.com/api/v3/simple/price"
+cg_url = "https://api.coingecko.com/api/v3/coins/markets"
 params = {
+    'vs_currency': 'usd',
     'ids': ','.join(portfolio_coins),
-    'vs_currencies': 'usd',
-    'include_market_cap': 'true',
-    'include_24hr_vol': 'true',
-    'include_24hr_change': 'true'
+    'order': 'market_cap_desc',
+    'per_page': 250,
+    'page': 1,
+    'sparkline': False
 }
 response = requests.get(cg_url, params=params)
 data = response.json()
 
+# Übersichtstabelle
 st.subheader("📈 Live-Daten deiner beobachteten Coins")
 coin_table = []
-for coin, info in data.items():
+for coin in data:
     coin_table.append({
-        "Coin": coin.replace('-', ' ').title(),
-        "Preis (USD)": info.get("usd", 0),
-        "24h Veränderung (%)": info.get("usd_24hr_change", 0),
-        "Marktkapitalisierung": info.get("usd_market_cap", 0),
-        "Volumen (24h)": info.get("usd_24hr_vol", 0)
+        "Coin": coin['name'],
+        "Preis (USD)": coin['current_price'],
+        "24h Veränderung (%)": coin['price_change_percentage_24h'],
+        "Market Cap": coin['market_cap'],
+        "Volumen (24h)": coin['total_volume']
     })
 df = pd.DataFrame(coin_table)
-df_sorted = df.sort_values(by="Marktkapitalisierung", ascending=False)
+df_sorted = df.sort_values(by="Market Cap", ascending=False)
 st.dataframe(df_sorted, use_container_width=True, hide_index=True)
 
-# SECTION 2 – Makro-Indikatoren (FRED via Beispiel-CSV)
+# SECTION 2 – Bewertungs-Radar
+st.header("📊 Fundamentale Bewertung (Radar-Modul)")
+radar_table = []
+for coin in data:
+    try:
+        volume_ratio = coin['total_volume'] / coin['market_cap'] if coin['market_cap'] else 0
+        supply_ratio = coin['circulating_supply'] / coin['total_supply'] if coin['total_supply'] else 0
+        radar_table.append({
+            "Coin": coin['symbol'].upper(),
+            "Volume/MarketCap": round(volume_ratio, 3),
+            "Supply genutzt (%)": round(supply_ratio * 100, 2),
+            "Preis (USD)": coin['current_price']
+        })
+    except:
+        continue
+
+radar_df = pd.DataFrame(radar_table)
+st.dataframe(radar_df, use_container_width=True, hide_index=True)
+
+# SECTION 3 – Makro-Indikatoren
 st.header("📉 Makro-Indikatoren")
 data_macro = pd.DataFrame({
     'Datum': pd.date_range(end=datetime.today(), periods=12, freq='M'),
@@ -60,7 +81,7 @@ fig.add_trace(go.Scatter(x=data_macro['Datum'], y=data_macro['DXY Index'], name=
 fig.update_layout(margin=dict(l=0, r=0, t=30, b=0), height=350)
 st.plotly_chart(fig, use_container_width=True)
 
-# SECTION 3 – Sentiment-Modul
+# SECTION 4 – Sentiment-Modul
 st.header("📊 Sentiment: Fear & Greed + Google Trends")
 fng_data = requests.get("https://api.alternative.me/fng/").json()
 fng_value = fng_data['data'][0]['value']
@@ -69,15 +90,26 @@ fng_date = datetime.fromtimestamp(int(fng_data['data'][0]['timestamp']))
 
 st.metric(label=f"Fear & Greed Index ({fng_text})", value=fng_value, delta=f"Stand: {fng_date.strftime('%d.%m.%Y')}")
 
-# SECTION 4 – Whale-Bewegungen (ClankApp Beispiel)
+# SECTION 5 – Whale-Bewegungen (ClankApp Beispiel)
 st.header("🐋 Whale-Bewegungen (ClankApp API Beispiel)")
 st.info("Live-Daten via ClankApp: Transfers von >$500k auf Ethereum – nur demonstrativ")
 url_clank = "https://api.clankapp.com/v2/transactions?symbol=eth&limit=5"
-resp = requests.get(url_clank).json()
-for tx in resp.get("data", []):
-    st.write(f"{tx['amount']} {tx['coin_symbol'].upper()} von {tx['from_label']} ➡️ {tx['to_label']} (${tx['amount_usd']:,} USD)")
 
-# SECTION 5 – Ereignis-Zeitleiste (manuell)
+try:
+    resp = requests.get(url_clank, timeout=10)
+    if resp.status_code == 200:
+        data = resp.json()
+        if data.get("data"):
+            for tx in data["data"]:
+                st.write(f"{tx['amount']} {tx['coin_symbol'].upper()} von {tx['from_label']} ➡️ {tx['to_label']} (${tx['amount_usd']:,} USD)")
+        else:
+            st.warning("Keine Whale-Daten verfügbar.")
+    else:
+        st.warning("ClankApp API ist aktuell nicht erreichbar.")
+except Exception:
+    st.error("Whale-Daten konnten nicht geladen werden.")
+
+# SECTION 6 – Ereignis-Zeitleiste (manuell)
 st.header("🗓️ Ereignisse")
 events = pd.DataFrame({
     'Datum': ['2024-04-15', '2024-05-01', '2024-07-01'],
