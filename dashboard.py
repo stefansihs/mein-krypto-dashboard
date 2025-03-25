@@ -8,6 +8,29 @@ st.set_page_config(page_title="Krypto Kapitalfluss Dashboard", layout="wide")
 st.title("📊 Ultimatives Krypto Kapitalfluss Dashboard")
 st.caption("Alle Daten live und ohne Anmeldung – dein persönliches Frühwarnsystem für Bewegungen im Finanz- & Kryptomarkt")
 
+# SECTION 0 – Sofort-Handlungsindikator
+st.header("🚦 Marktampel – Handlungsempfehlung in Echtzeit")
+
+# Anteil Coins mit negativem Trend
+try:
+    neg_count = df_sorted["24h Veränderung (%)"].lt(0).sum()
+    total_count = len(df_sorted)
+    neg_ratio = round((neg_count / total_count) * 100, 1)
+
+    if 'risk_score' in locals():
+        score = risk_score + 5
+        if score >= 8 and neg_ratio > 60:
+            st.error(f"📍 Marktlage: 🔴 Hohe Vorsicht
+Grund: {neg_ratio}% der Coins im Minus, Makro-Risiko sehr hoch ({score}/10).")
+        elif score >= 6 or neg_ratio > 40:
+            st.warning(f"📍 Marktlage: 🟠 Beobachten
+Grund: {neg_ratio}% der Coins im Minus, moderates Makro-Risiko ({score}/10).")
+        else:
+            st.success(f"📍 Marktlage: 🟢 Positiv
+Grund: Nur {neg_ratio}% der Coins im Minus, Makro-Umfeld günstig ({score}/10).")
+except:
+    st.info("Marktampel konnte nicht berechnet werden. Prüfe Datenverfügbarkeit.")
+
 # SECTION 1 – Portfolio Coins Marktübersicht (CoinGecko)
 st.header("🪙 Dein Portfolio: Marktüberblick")
 portfolio_coins = [
