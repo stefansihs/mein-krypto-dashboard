@@ -45,7 +45,27 @@ for coin in data:
     })
 df = pd.DataFrame(coin_table)
 df_sorted = df.sort_values(by="Market Cap", ascending=False)
-st.dataframe(df_sorted, use_container_width=True, hide_index=True)
+
+# Farben für 24h Bewegung
+st.markdown("**🟢 Grün = Kursanstieg | 🔴 Rot = Kursverlust**")
+def highlight_change(val):
+    if val is None:
+        return ''
+    color = 'green' if val > 0 else 'red'
+    return f'background-color: {color}; color: white'
+
+styled_df = df_sorted.style.applymap(highlight_change, subset=["24h Veränderung (%)"])
+st.dataframe(styled_df, use_container_width=True, hide_index=True)
+
+# Heatmap-ähnlicher Hinweis basierend auf Makro-Risiko
+if 'risk_score' in locals():
+    st.markdown("### 📊 🧭 Makro-basierte Marktinterpretation")
+    if risk_score + 5 >= 8:
+        st.error("⚠️ Aktuell hohe makroökonomische Risiken! Defensive Coins bevorzugen (z. B. BTC, ETH, Stablecoins).")
+    elif risk_score + 5 >= 6:
+        st.warning("🔶 Moderate Risiken im Markt. Wachsam bleiben und bei Altcoins selektiv sein.")
+    else:
+        st.success("✅ Niedriges Makro-Risiko: Marktumfeld eher günstig für Risikoanlagen (z. B. Altcoins).")
 
 # SECTION 2 – Bewertungs-Radar
 st.header("📊 Fundamentale Bewertung (Radar-Modul)")
@@ -74,6 +94,25 @@ data_macro = pd.DataFrame({
     'CPI Inflation (%)': [1.6, 2.0, 2.5, 3.0, 4.5, 6.0, 8.0, 7.0, 6.5, 5.0, 3.5, 3.1],
     'DXY Index': [89, 90, 91, 93, 95, 97, 100, 102, 104, 106, 105, 103]
 })
+
+# Trendanalyse
+def trend(values):
+    return "🟢 steigend" if values[-1] > values[-2] else "🔴 fallend"
+
+trend_fed = trend(data_macro['FED Rate (%)'])
+trend_cpi = trend(data_macro['CPI Inflation (%)'])
+trend_dxy = trend(data_macro['DXY Index'])
+
+st.markdown(f"**Makro-Trends:** FED: {trend_fed} | Inflation: {trend_cpi} | DXY: {trend_dxy}")
+
+# Makro-Risiko-Skala (vereinfacht)
+risk_score = 0
+risk_score += 2 if data_macro['FED Rate (%)'].iloc[-1] > 4 else 0
+risk_score += 2 if data_macro['DXY Index'].iloc[-1] > 102 else 0
+risk_score += 1 if data_macro['CPI Inflation (%)'].iloc[-1] > 3 else 0
+
+st.metric(label="🧠 Makro-Risiko-Score (1–10)", value=risk_score + 5)
+
 fig = go.Figure()
 fig.add_trace(go.Scatter(x=data_macro['Datum'], y=data_macro['FED Rate (%)'], name='FED Rate'))
 fig.add_trace(go.Scatter(x=data_macro['Datum'], y=data_macro['CPI Inflation (%)'], name='CPI Inflation'))
@@ -116,6 +155,33 @@ events = pd.DataFrame({
     'Ereignis': ['FED Meeting', 'BTC Halving', 'Ethereum Dencun Upgrade']
 })
 st.table(events)
+
+# SECTION 7 – Einzel-Chart pro Coin
+st.header("📈 Preisverlauf einzelner Coins (7 Tage)")
+
+coin_names = [coin['name'] for coin in data]
+selected_coin = st.selectbox("Wähle einen Coin für den Chart", coin_names)
+
+if selected_coin:
+    selected_id = next((coin['id'] for coin in data if coin['name'] == selected_coin), None)
+    if selected_id:
+        chart_url = f"https://api.coingecko.com/api/v3/coins/{selected_id}/market_chart"
+        chart_params = {
+            'vs_currency': 'usd',
+            'days': '7',
+            'interval': 'daily'
+        }
+        chart_data = requests.get(chart_url, params=chart_params).json()
+        prices = chart_data.get('prices', [])
+        if prices:
+            dates = [datetime.fromtimestamp(p[0] / 1000).date() for p in prices]
+            values = [p[1] for p in prices]
+            fig_chart = go.Figure()
+            fig_chart.add_trace(go.Scatter(x=dates, y=values, mode='lines', name=selected_coin))
+            fig_chart.update_layout(title=f"{selected_coin} – Preisentwicklung (7 Tage)", xaxis_title='Datum', yaxis_title='USD', height=350)
+            st.plotly_chart(fig_chart, use_container_width=True)
+        else:
+            st.warning("Keine Preisdaten gefunden.")
 
 st.markdown("---")
 st.caption("Erstellt für persönliche Marktanalyse – alle Module erweiterbar ✨")
