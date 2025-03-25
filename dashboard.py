@@ -97,7 +97,10 @@ data_macro = pd.DataFrame({
 
 # Trendanalyse
 def trend(values):
-    return "🟢 steigend" if values[-1] > values[-2] else "🔴 fallend"
+    if len(values) >= 2:
+        return "🟢 steigend" if values.iloc[-1] > values.iloc[-2] else "🔴 fallend"
+    else:
+        return "⚪️ nicht genug Daten""🟢 steigend" if values[-1] > values[-2] else "🔴 fallend"
 
 trend_fed = trend(data_macro['FED Rate (%)'])
 trend_cpi = trend(data_macro['CPI Inflation (%)'])
