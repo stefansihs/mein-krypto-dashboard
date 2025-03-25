@@ -20,15 +20,16 @@ try:
     if 'risk_score' in locals():
         score = risk_score + 5
         if score >= 8 and neg_ratio > 60:
-        st.error(f"📍 Marktlage: 🔴 Hohe Vorsicht
-Grund: {neg_ratio}% der Coins im Minus, Makro-Risiko sehr hoch ({score}/10).").")
+            st.error(f"📍 Marktlage: 🔴 Hohe Vorsicht
+Grund: {neg_ratio}% der Coins im Minus, Makro-Risiko sehr hoch ({score}/10).")
         elif score >= 6 or neg_ratio > 40:
-        st.warning(f"📍 Marktlage: 🟠 Beobachten
-Grund: {neg_ratio}% der Coins im Minus, moderates Makro-Risiko ({score}/10).").")
+            st.warning(f"📍 Marktlage: 🟠 Beobachten
+Grund: {neg_ratio}% der Coins im Minus, moderates Makro-Risiko ({score}/10).")
         else:
-        st.success(f"📍 Marktlage: 🟢 Positiv
-Grund: Nur {neg_ratio}% der Coins im Minus, Makro-Umfeld günstig ({score}/10).").")
+            st.success(f"📍 Marktlage: 🟢 Positiv
+Grund: Nur {neg_ratio}% der Coins im Minus, Makro-Umfeld günstig ({score}/10).")
 except:
+    st.info("Marktampel konnte nicht berechnet werden. Prüfe Datenverfügbarkeit.")
     st.info("Marktampel konnte nicht berechnet werden. Prüfe Datenverfügbarkeit.")
 
 # SECTION 1 – Portfolio Coins Marktübersicht (CoinGecko)
